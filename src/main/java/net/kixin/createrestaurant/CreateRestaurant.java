@@ -1,5 +1,10 @@
 package net.kixin.createrestaurant;
 
+import net.kixin.createrestaurant.block.ModBlocks;
+import net.kixin.createrestaurant.blockentity.ModBlockEntities;
+import net.kixin.createrestaurant.client.ModMenus;
+import net.kixin.createrestaurant.item.ModCreativeModeTabs;
+import net.kixin.createrestaurant.item.ModItems;
 import org.slf4j.Logger;
 
 import com.mojang.logging.LogUtils;
@@ -31,17 +36,16 @@ public class CreateRestaurant {
         // Register the commonSetup method for modloading
         modEventBus.addListener(this::commonSetup);
 
-//        // Register the Deferred Register to the mod event bus so blocks get registered
-//        BLOCKS.register(modEventBus);
-//        // Register the Deferred Register to the mod event bus so items get registered
-//        ITEMS.register(modEventBus);
-//        // Register the Deferred Register to the mod event bus so tabs get registered
-//        CREATIVE_MODE_TABS.register(modEventBus);
-
         // Register ourselves for server and other game events we are interested in.
         // Note that this is necessary if and only if we want *this* class (CreateRestaurant) to respond directly to events.
         // Do not add this line if there are no @SubscribeEvent-annotated functions in this class, like onServerStarting() below.
         NeoForge.EVENT_BUS.register(this);
+
+        //Registers
+        ModItems.ITEMS.register(modEventBus);
+        ModBlocks.BLOCKS.register(modEventBus);
+        ModBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
+        ModMenus.MENUS.register(modEventBus);
 
         // Register the item to a creative tab
         modEventBus.addListener(this::addCreative);
@@ -65,8 +69,11 @@ public class CreateRestaurant {
 
     // Add the example block item to the building blocks tab
     private void addCreative(BuildCreativeModeTabContentsEvent event) {
+        if (event.getTabKey() == CreativeModeTabs.INGREDIENTS) {
+            //event.accept(ModBlocks.MENU);
+        }
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
-            //event.accept(EXAMPLE_BLOCK_ITEM);
+            //event.accept(ModBlocks.MENU);
         }
     }
 
