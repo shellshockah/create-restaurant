@@ -75,13 +75,7 @@ public final class RestaurantMenu extends AbstractContainerMenu {
         for (int row = 0; row < MAX_ROWS; row++) {
             int visiblePosition = row % VISIBLE_ROWS;
 
-            addSlot(new FoodSlot(
-                    foods,
-                    row,
-                    36,
-                    64 + visiblePosition * 21,
-                    this
-            ));
+            addSlot(new FoodSlot(foods, row, 36, 54 + row * 21, this));
         }
 
         addPlayerInventory(playerInventory);
@@ -127,11 +121,23 @@ public final class RestaurantMenu extends AbstractContainerMenu {
     private void addPlayerInventory(Inventory inventory) {
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
-                addSlot(new Slot(inventory, column + row * 9 + 9, 43 + column * 18, 178 + row * 18));
+                addSlot(new Slot(
+                        inventory,
+                        column + row * 9 + 9,
+                        43 + column * 18,
+                        167 + row * 18
+                ));
+
             }
         }
         for (int column = 0; column < 9; column++) {
-            addSlot(new Slot(inventory, column, 43 + column * 18, 236));
+            addSlot(new Slot(
+                    inventory,
+                    column,
+                    43 + column * 18,
+                    225
+            ));
+
         }
     }
 

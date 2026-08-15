@@ -25,9 +25,9 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
     private static final int MUTED = 0xFFB9AA91;
     private static final int GOLD = 0xFFFFC642;
     private static final int SCROLL_X = 20;
-    private static final int SCROLL_Y = 63;
+    private static final int SCROLL_Y = 53;
     private static final int SCROLL_WIDTH = 8;
-    private static final int SCROLL_HEIGHT = 103;
+    private static final int SCROLL_HEIGHT = 82;
     private static final int MIN_THUMB_HEIGHT = 12;
 
     private boolean draggingScrollbar;
@@ -47,36 +47,30 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
     public RestaurantScreen(RestaurantMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
         imageWidth = 248;
-        imageHeight = 266;
+        imageHeight = 250;
         titleLabelX = 10;
-        titleLabelY = 10;
+        titleLabelY = 7;
         inventoryLabelX = 43;
-        inventoryLabelY = 166;
+        inventoryLabelY = 155;
     }
 
     @Override
     protected void init() {
         super.init();
-
-        runningSwitch = addRenderableWidget(Button.builder(
-                switchLabel(),
-                button -> sendSimple(ActionPayload.TOGGLE_GAME)
-        ).bounds(leftPos + 169, topPos + 7, 68, 20).build());
-
         summaryTab = addRenderableWidget(Button.builder(
                 Component.translatable("gui.create_restaurant.summary"),
                 button -> selectTab(Tab.SUMMARY)
-        ).bounds(leftPos + 11, topPos + 34, 108, 20).build());
+        ).bounds(leftPos + 11, topPos + 19, 108, 20).build());
 
         foodTab = addRenderableWidget(Button.builder(
                 Component.translatable("gui.create_restaurant.food"),
                 button -> selectTab(Tab.FOOD)
-        ).bounds(leftPos + 129, topPos + 34, 108, 20).build());
+        ).bounds(leftPos + 129, topPos + 19, 108, 20).build());
 
         restaurantName = addRenderableWidget(new EditBox(
                 font,
                 leftPos + 72,
-                topPos + 62,
+                topPos + 47,
                 157,
                 18,
                 Component.translatable("gui.create_restaurant.restaurant_name")
@@ -95,18 +89,22 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
             }
         });
 
+        runningSwitch = addRenderableWidget(Button.builder(
+                switchLabel(),
+                button -> sendSimple(ActionPayload.TOGGLE_GAME)
+        ).bounds(leftPos + 25, topPos + 133, 90, 17).build());
         collectButton = addRenderableWidget(Button.builder(
                 Component.empty(),
                 button -> sendSimple(ActionPayload.COLLECT_EARNINGS)
-        ).bounds(leftPos + 68, topPos + 142, 112, 20).build());
+        ).bounds(leftPos + 121, topPos + 133, 108, 17).build());
 
         for (int row = 0; row < priceBoxes.length; row++) {
             final int capturedRow = row;
             EditBox priceBox = addRenderableWidget(new EditBox(
                     font,
                     leftPos + 94,
-                    topPos + 64 + row * 21,
-                    55,
+                    topPos + 54 + row * 21,
+                    45,
                     18,
                     Component.translatable("gui.create_restaurant.price")
             ));
@@ -137,8 +135,8 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
             EditBox marketPriceBox = addRenderableWidget(new EditBox(
                     font,
                     leftPos + 174,
-                    topPos + 64 + row * 21,
-                    55,
+                    topPos + 54 + row * 21,
+                    45,
                     18,
                     Component.translatable("gui.create_restaurant.market_price")
             ));
@@ -150,11 +148,11 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
         addRowButton = addRenderableWidget(Button.builder(
                 Component.translatable("gui.create_restaurant.add_row"),
                 button -> sendSimple(ActionPayload.ADD_ROW)
-        ).bounds(leftPos + 35, topPos + 148, 94, 16).build());
+        ).bounds(leftPos + 35, topPos + 136, 94, 16).build());
         subRowButton = addRenderableWidget(Button.builder(
                 Component.translatable("gui.create_restaurant.sub_row"),
                 button -> sendSimple(ActionPayload.SUB_ROW)
-        ).bounds(leftPos + 136, topPos + 148, 93, 16).build());
+        ).bounds(leftPos + 136, topPos + 136, 93, 16).build());
 
         applyTabVisibility();
     }
@@ -170,6 +168,7 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
         summaryTab.active = !summary;
         foodTab.active = summary;
         restaurantName.visible = summary;
+        runningSwitch.visible = summary;
         collectButton.visible = summary;
         addRowButton.visible = !summary;
         subRowButton.visible = !summary;
@@ -280,13 +279,13 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
     }
 
     private void renderSummaryBackground(GuiGraphics graphics) {
-        graphics.fill(leftPos + 17, topPos + 58, leftPos + 231, topPos + 164, PANEL_LIGHT);
-        outline(graphics, leftPos + 17, topPos + 58, 214, 106, BORDER);
+        graphics.fill(leftPos + 17, topPos + 42, leftPos + 231, topPos + 153, PANEL_LIGHT);
+        outline(graphics, leftPos + 17, topPos + 42, 214, 111, BORDER);
 
         int graphLeft = leftPos + 25;
-        int graphTop = topPos + 103;
+        int graphTop = topPos + 95;
         int graphWidth = 198;
-        int graphHeight = 35;
+        int graphHeight = 24;
         graphics.fill(graphLeft, graphTop, graphLeft + graphWidth, graphTop + graphHeight, 0xFF211D19);
         graphics.hLine(graphLeft, graphLeft + graphWidth, graphTop + graphHeight, BORDER);
         graphics.vLine(graphLeft, graphTop, graphTop + graphHeight, BORDER);
@@ -363,7 +362,7 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
 
     private void renderFoodBackground(GuiGraphics graphics) {
         for (int row = 0; row < menu.getVisibleRowCount(); row++) {
-            int y = topPos + 63 + row * 21;
+            int y = topPos + 53 + row * 21;
 
             graphics.fill(
                     leftPos + 35,
@@ -443,8 +442,8 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
     private boolean isMouseOverFoodArea(double mouseX, double mouseY) {
         return mouseX >= leftPos + 16
                 && mouseX < leftPos + 231
-                && mouseY >= topPos + 58
-                && mouseY < topPos + 168;
+                && mouseY >= topPos + 40
+                && mouseY < topPos + 153;
     }
 
     @Override
@@ -519,11 +518,11 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
     private void renderPlayerInventoryBackground(GuiGraphics graphics) {
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
-                slotFrame(graphics, leftPos + 42 + column * 18, topPos + 177 + row * 18);
+                slotFrame(graphics, leftPos + 42 + column * 18, topPos + 166 + row * 18);
             }
         }
         for (int column = 0; column < 9; column++) {
-            slotFrame(graphics, leftPos + 42 + column * 18, topPos + 235);
+            slotFrame(graphics, leftPos + 42 + column * 18, topPos + 224);
         }
     }
 
@@ -549,7 +548,7 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
                     font,
                     Component.translatable("gui.create_restaurant.restaurant_name"),
                     25,
-                    67,
+                    52,
                     TEXT,
                     false
             );
@@ -557,40 +556,40 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
                     font,
                     Component.translatable("gui.create_restaurant.rating"),
                     25,
-                    86,
+                    72,
                     TEXT,
                     false
             );
             for (int star = 0; star < 5; star++) {
-                graphics.drawString(font, "★", 76 + star * 14, 84, star < menu.getRating() ? GOLD : 0xFF655B4E, false);
+                graphics.drawString(font, "★", 76 + star * 14, 70, star < menu.getRating() ? GOLD : 0xFF655B4E, false);
             }
             graphics.drawString(
                     font,
                     Component.translatable("gui.create_restaurant.last_five_games"),
                     25,
-                    93,
+                    84,
                     MUTED,
                     false
             );
             for (int i = 0; i < 5; i++) {
-                graphics.drawCenteredString(font, Integer.toString(menu.getCustomerHistory(i)), 45 + i * 37, 128, TEXT);
+                graphics.drawCenteredString(font, Integer.toString(menu.getCustomerHistory(i)), 45 + i * 37, 109, TEXT);
             }
             graphics.drawString(
                     font,
                     Component.translatable("gui.create_restaurant.current_customers", menu.getCurrentCustomers()),
                     25,
-                    148,
+                    121,
                     TEXT,
                     false
             );
         } else {
-            graphics.drawString(font, Component.translatable("gui.create_restaurant.food_item"), 25, 54, TEXT, false);
-            graphics.drawString(font, Component.translatable("gui.create_restaurant.emerald_price"), 79, 54, TEXT, false);
-            graphics.drawString(font, Component.translatable("gui.create_restaurant.market_price"), 164, 54, TEXT, false);
+            graphics.drawString(font, Component.translatable("gui.create_restaurant.food_item"), 25, 42, TEXT, false);
+            graphics.drawString(font, Component.translatable("gui.create_restaurant.emerald_price"), 79, 42, TEXT, false);
+            graphics.drawString(font, Component.translatable("gui.create_restaurant.market_price"), 164, 42, TEXT, false);
             for (int row = 0; row < menu.getVisibleRowCount(); row++) {
-                graphics.drawString(font, "×", 79, 69 + row * 21, MUTED, false);
-                graphics.drawString(font, "♦", 86, 69 + row * 21, 0xFF55E27A, false);
-                graphics.drawString(font, "♦", 165, 69 + row * 21, 0xFF55E27A, false);
+                graphics.drawString(font, "×", 79, 59 + row * 21, MUTED, false);
+                graphics.drawString(font, "♦", 86, 59 + row * 21, 0xFF55E27A, false);
+                graphics.drawString(font, "♦", 165, 59 + row * 21, 0xFF55E27A, false);
             }
         }
     }
