@@ -17,7 +17,8 @@ public record ActionPayload(BlockPos pos, int action, int row, int value, String
     public static final int SET_NAME = 1;
     public static final int SET_PRICE = 2;
     public static final int ADD_ROW = 3;
-    public static final int COLLECT_EARNINGS = 4;
+    public static final int SUB_ROW = 4;
+    public static final int COLLECT_EARNINGS = 5;
 
     public static final Type<ActionPayload> TYPE = new Type<>(
             ResourceLocation.fromNamespaceAndPath(CreateRestaurant.MODID, "restaurant_action")
@@ -71,6 +72,7 @@ public record ActionPayload(BlockPos pos, int action, int row, int value, String
             case SET_NAME -> blockEntity.setRestaurantName(payload.text);
             case SET_PRICE -> blockEntity.setPrice(payload.row, payload.value);
             case ADD_ROW -> blockEntity.addRow();
+            case SUB_ROW -> blockEntity.subRow();
             case COLLECT_EARNINGS -> blockEntity.collectEarnings(player);
             default -> { }
         }

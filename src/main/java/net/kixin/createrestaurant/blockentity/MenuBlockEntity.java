@@ -5,6 +5,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
@@ -28,26 +29,16 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Arrays;
 
 public class MenuBlockEntity extends BlockEntity implements MenuProvider {
-    public static final int MAX_ROWS = 4;
+    public static final int MAX_ROWS = 30;
+
+    private final ItemStackHandler foods =
+            new ItemStackHandler(MAX_ROWS);
+
+    private final int[] prices = new int[MAX_ROWS];
     public static final int DATA_COUNT = 10;
     public static final int MAX_PRICE = 64;
     public static final int SUNSET = 12_000;
     private static final int CUSTOMER_INTERVAL = 200;
-
-    private final ItemStackHandler foods = new ItemStackHandler(MAX_ROWS) {
-        @Override
-        public boolean isItemValid(int slot, ItemStack stack) {
-            return stack.has(DataComponents.FOOD)
-                    || stack.getItem().getFoodProperties(stack, null) != null;
-        }
-
-        @Override
-        protected void onContentsChanged(int slot) {
-            setChangedAndSync();
-        }
-    };
-
-    private final int[] prices = new int[MAX_ROWS];
     private final int[] customerHistory = new int[5];
     private String restaurantName = "My Restaurant";
     private boolean running;
@@ -225,6 +216,13 @@ public class MenuBlockEntity extends BlockEntity implements MenuProvider {
         }
     }
 
+    public void subRow() {
+        if (activeRows >= 2) {
+            activeRows--;
+            setChangedAndSync();
+        }
+    }
+
     public void collectEarnings(ServerPlayer player) {
         int remaining = pendingEmeralds;
         pendingEmeralds = 0;
@@ -296,6 +294,14 @@ public class MenuBlockEntity extends BlockEntity implements MenuProvider {
     @Override
     protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
         super.loadAdditional(tag, registries);
+        if (tag.contains("Foods", Tag.TAG_COMPOUND)) {
+            CompoundTag foodData = tag.getCompound("Foods").copy();
+
+            // Prevent old saved block entities from shrinking the handler.
+            foodData.putInt("Size", MAX_ROWS);
+
+            foods.deserializeNBT(registries, foodData);
+        }
         restaurantName = tag.getString("RestaurantName");
         if (restaurantName.isBlank()) {
             restaurantName = "My Restaurant";

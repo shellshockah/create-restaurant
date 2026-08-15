@@ -3,6 +3,7 @@ package net.kixin.createrestaurant;
 import net.kixin.createrestaurant.block.ModBlocks;
 import net.kixin.createrestaurant.blockentity.ModBlockEntities;
 import net.kixin.createrestaurant.client.ModMenus;
+import net.kixin.createrestaurant.config.MarketPriceConfig;
 import net.kixin.createrestaurant.item.ModCreativeModeTabs;
 import net.kixin.createrestaurant.item.ModItems;
 import org.slf4j.Logger;
@@ -47,10 +48,16 @@ public class CreateRestaurant {
         ModBlockEntities.BLOCK_ENTITY_TYPES.register(modEventBus);
         ModMenus.MENUS.register(modEventBus);
 
+        modContainer.registerConfig(
+                ModConfig.Type.SERVER,
+                MarketPriceConfig.SPEC,
+                "create_restaurant-market-prices.toml"
+        );
+
         // Register the item to a creative tab
         modEventBus.addListener(this::addCreative);
 
-        // Register our mod's ModConfigSpec so that FML can create and load the config file for us
+        // Register our mod's ModConfigSpec so that FML can create and load the net.kixin.createrestaurant.config file for us
         modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
     }
 

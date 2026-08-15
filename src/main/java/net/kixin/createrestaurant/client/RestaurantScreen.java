@@ -1,15 +1,19 @@
 package net.kixin.createrestaurant.client;
 
-import net.kixin.createrestaurant.blockentity.MenuBlockEntity;
-import net.kixin.createrestaurant.client.RestaurantMenu;
+import net.kixin.createrestaurant.config.MarketPriceConfig;
 import net.kixin.createrestaurant.network.ActionPayload;
+import net.minecraft.util.Mth;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.PacketDistributor;
+
+import static net.kixin.createrestaurant.blockentity.MenuBlockEntity.MAX_ROWS;
+import static net.kixin.createrestaurant.client.RestaurantMenu.VISIBLE_ROWS;
 
 public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMenu> {
     private enum Tab { SUMMARY, FOOD }
@@ -20,15 +24,24 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
     private static final int TEXT = 0xFFF2E5C8;
     private static final int MUTED = 0xFFB9AA91;
     private static final int GOLD = 0xFFFFC642;
+    private static final int SCROLL_X = 20;
+    private static final int SCROLL_Y = 63;
+    private static final int SCROLL_WIDTH = 8;
+    private static final int SCROLL_HEIGHT = 103;
+    private static final int MIN_THUMB_HEIGHT = 12;
+
+    private boolean draggingScrollbar;
 
     private Tab tab = Tab.SUMMARY;
     private Button summaryTab;
     private Button foodTab;
     private Button runningSwitch;
     private Button addRowButton;
+    private Button subRowButton;
     private Button collectButton;
     private EditBox restaurantName;
-    private final EditBox[] priceBoxes = new EditBox[MenuBlockEntity.MAX_ROWS];
+    private final EditBox[] priceBoxes = new EditBox[VISIBLE_ROWS];
+    private final EditBox[] marketPriceBoxes = new EditBox[VISIBLE_ROWS];
     private boolean changingWidgetValues;
 
     public RestaurantScreen(RestaurantMenu menu, Inventory playerInventory, Component title) {
@@ -91,9 +104,9 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
             final int capturedRow = row;
             EditBox priceBox = addRenderableWidget(new EditBox(
                     font,
-                    leftPos + 117,
+                    leftPos + 94,
                     topPos + 64 + row * 21,
-                    48,
+                    55,
                     18,
                     Component.translatable("gui.create_restaurant.price")
             ));
@@ -106,10 +119,12 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
                 }
                 try {
                     int price = Integer.parseInt(value);
+                    int absoluteRow = menu.getFirstVisibleRow() + capturedRow;
+
                     PacketDistributor.sendToServer(new ActionPayload(
                             menu.getBlockPos(),
                             ActionPayload.SET_PRICE,
-                            capturedRow,
+                            absoluteRow,
                             price,
                             ""
                     ));
@@ -118,12 +133,28 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
                 }
             });
             priceBoxes[row] = priceBox;
+
+            EditBox marketPriceBox = addRenderableWidget(new EditBox(
+                    font,
+                    leftPos + 174,
+                    topPos + 64 + row * 21,
+                    55,
+                    18,
+                    Component.translatable("gui.create_restaurant.market_price")
+            ));
+            marketPriceBox.setEditable(false);
+            marketPriceBox.setValue(getMarketPriceText(row));
+            marketPriceBoxes[row] = marketPriceBox;
         }
 
         addRowButton = addRenderableWidget(Button.builder(
                 Component.translatable("gui.create_restaurant.add_row"),
                 button -> sendSimple(ActionPayload.ADD_ROW)
-        ).bounds(leftPos + 174, topPos + 64, 55, 18).build());
+        ).bounds(leftPos + 35, topPos + 148, 94, 16).build());
+        subRowButton = addRenderableWidget(Button.builder(
+                Component.translatable("gui.create_restaurant.sub_row"),
+                button -> sendSimple(ActionPayload.SUB_ROW)
+        ).bounds(leftPos + 136, topPos + 148, 93, 16).build());
 
         applyTabVisibility();
     }
@@ -141,9 +172,12 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
         restaurantName.visible = summary;
         collectButton.visible = summary;
         addRowButton.visible = !summary;
+        subRowButton.visible = !summary;
 
         for (int row = 0; row < priceBoxes.length; row++) {
-            priceBoxes[row].visible = !summary && row < menu.getActiveRows();
+            boolean rowVisible = !summary && row < menu.getVisibleRowCount();
+            priceBoxes[row].visible = rowVisible;
+            marketPriceBoxes[row].visible = rowVisible;
         }
     }
 
@@ -157,6 +191,22 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
         PacketDistributor.sendToServer(ActionPayload.simple(menu.getBlockPos(), action));
     }
 
+    private String getMarketPriceText(int absoluteRow) {
+        if (absoluteRow < 0 || absoluteRow >= MAX_ROWS) {
+            return "";
+        }
+
+        // RestaurantMenu adds all food slots before the player inventory slots,
+        // so the absolute food row is also its menu slot index.
+        ItemStack food = menu.getSlot(absoluteRow).getItem();
+        if (food.isEmpty()) {
+            return "";
+        }
+
+        int marketPrice = MarketPriceConfig.getMarketPrice(food);
+        return marketPrice >= 0 ? Integer.toString(marketPrice) : "—";
+    }
+
     @Override
     protected void containerTick() {
         super.containerTick();
@@ -166,17 +216,42 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
                 menu.getPendingEmeralds()
         ));
         collectButton.active = menu.getPendingEmeralds() > 0;
-        addRowButton.active = menu.getActiveRows() < MenuBlockEntity.MAX_ROWS;
+        addRowButton.active = menu.getActiveRows() < MAX_ROWS;
+        subRowButton.active = menu.getActiveRows() > 1;
+
+        // If rows were removed while scrolled down, move back to the new end.
+        if (menu.getFirstVisibleRow() > getMaxFirstVisibleRow()) {
+            menu.setFirstVisibleRow(getMaxFirstVisibleRow());
+        }
 
         changingWidgetValues = true;
         if (!restaurantName.isFocused() && !restaurantName.getValue().equals(menu.getRestaurantName())) {
             restaurantName.setValue(menu.getRestaurantName());
         }
-        for (int row = 0; row < priceBoxes.length; row++) {
-            EditBox priceBox = priceBoxes[row];
-            String serverPrice = Integer.toString(menu.getPrice(row));
-            if (!priceBox.isFocused() && !priceBox.getValue().equals(serverPrice)) {
-                priceBox.setValue(serverPrice);
+        for (int visibleRow = 0; visibleRow < priceBoxes.length; visibleRow++) {
+            int absoluteRow = menu.getFirstVisibleRow() + visibleRow;
+            EditBox priceBox = priceBoxes[visibleRow];
+            EditBox marketPriceBox = marketPriceBoxes[visibleRow];
+
+            priceBox.visible = tab == Tab.FOOD
+                    && visibleRow < menu.getVisibleRowCount();
+            marketPriceBox.visible = priceBox.visible;
+
+            if (priceBox.visible && !priceBox.isFocused()) {
+                String serverPrice = Integer.toString(
+                        menu.getPrice(absoluteRow)
+                );
+
+                if (!priceBox.getValue().equals(serverPrice)) {
+                    priceBox.setValue(serverPrice);
+                }
+            }
+
+            if (marketPriceBox.visible) {
+                String marketPrice = getMarketPriceText(absoluteRow);
+                if (!marketPriceBox.getValue().equals(marketPrice)) {
+                    marketPriceBox.setValue(marketPrice);
+                }
             }
         }
         changingWidgetValues = false;
@@ -228,12 +303,217 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
         }
     }
 
+    private void renderScrollbar(GuiGraphics graphics) {
+        int x = leftPos + SCROLL_X;
+        int y = topPos + SCROLL_Y;
+
+        // Track
+        graphics.fill(
+                x,
+                y,
+                x + SCROLL_WIDTH,
+                y + SCROLL_HEIGHT,
+                0xFF181512
+        );
+
+        int maxFirstVisibleRow = getMaxFirstVisibleRow();
+
+        if (maxFirstVisibleRow == 0) {
+            graphics.fill(
+                    x + 1,
+                    y + 1,
+                    x + SCROLL_WIDTH - 1,
+                    y + SCROLL_HEIGHT - 1,
+                    0xFF655B4E
+            );
+            return;
+        }
+
+        int thumbHeight = getScrollbarThumbHeight();
+        int availableTravel = SCROLL_HEIGHT - thumbHeight;
+
+        int thumbY = y + Math.round(
+                availableTravel
+                        * (menu.getFirstVisibleRow() / (float) maxFirstVisibleRow)
+        );
+
+        graphics.fill(
+                x + 1,
+                thumbY,
+                x + SCROLL_WIDTH - 1,
+                thumbY + thumbHeight,
+                BORDER
+        );
+    }
+
+    private int getScrollbarThumbHeight() {
+        int activeRows = Math.max(1, menu.getActiveRows());
+        int visibleRows = Math.min(VISIBLE_ROWS, activeRows);
+
+        return Mth.clamp(
+                Math.round(SCROLL_HEIGHT * (visibleRows / (float) activeRows)),
+                MIN_THUMB_HEIGHT,
+                SCROLL_HEIGHT
+        );
+    }
+
+    private int getMaxFirstVisibleRow() {
+        return Math.max(0, menu.getActiveRows() - VISIBLE_ROWS);
+    }
+
     private void renderFoodBackground(GuiGraphics graphics) {
-        for (int row = 0; row < menu.getActiveRows(); row++) {
+        for (int row = 0; row < menu.getVisibleRowCount(); row++) {
             int y = topPos + 63 + row * 21;
-            graphics.fill(leftPos + 35, y, leftPos + 54, y + 19, 0xFF181512);
+
+            graphics.fill(
+                    leftPos + 35,
+                    y,
+                    leftPos + 54,
+                    y + 19,
+                    0xFF181512
+            );
+
             outline(graphics, leftPos + 35, y, 19, 19, BORDER);
         }
+        renderScrollbar(graphics);
+    }
+
+    private void updateScrollbarFromMouse(double mouseY) {
+        int maxFirstVisibleRow = getMaxFirstVisibleRow();
+        if (maxFirstVisibleRow == 0) {
+            setFirstVisibleFoodRow(0);
+            return;
+        }
+
+        int thumbHeight = getScrollbarThumbHeight();
+        int travel = SCROLL_HEIGHT - thumbHeight;
+
+        double relativeY =
+                mouseY
+                        - (topPos + SCROLL_Y)
+                        - thumbHeight / 2.0;
+
+        double percentage = Mth.clamp(relativeY / travel, 0.0, 1.0);
+
+        int firstVisibleRow = (int) Math.round(
+                percentage * maxFirstVisibleRow
+        );
+
+        setFirstVisibleFoodRow(firstVisibleRow);
+    }
+
+    private void setFirstVisibleFoodRow(int row) {
+        for (EditBox priceBox : priceBoxes) {
+            priceBox.setFocused(false);
+        }
+
+        menu.setFirstVisibleRow(Mth.clamp(row, 0, getMaxFirstVisibleRow()));
+
+        changingWidgetValues = true;
+
+        for (int visibleRow = 0;
+             visibleRow < priceBoxes.length;
+             visibleRow++) {
+
+            int absoluteRow =
+                    menu.getFirstVisibleRow() + visibleRow;
+
+            priceBoxes[visibleRow].setValue(
+                    Integer.toString(menu.getPrice(absoluteRow))
+            );
+            marketPriceBoxes[visibleRow].setValue(
+                    getMarketPriceText(absoluteRow)
+            );
+        }
+
+        changingWidgetValues = false;
+        applyTabVisibility();
+    }
+
+    private boolean isMouseOverScrollbar(double mouseX, double mouseY) {
+        int x = leftPos + SCROLL_X;
+        int y = topPos + SCROLL_Y;
+
+        return mouseX >= x
+                && mouseX < x + SCROLL_WIDTH
+                && mouseY >= y
+                && mouseY < y + SCROLL_HEIGHT;
+    }
+
+    private boolean isMouseOverFoodArea(double mouseX, double mouseY) {
+        return mouseX >= leftPos + 16
+                && mouseX < leftPos + 231
+                && mouseY >= topPos + 58
+                && mouseY < topPos + 168;
+    }
+
+    @Override
+    public boolean mouseScrolled(
+            double mouseX,
+            double mouseY,
+            double scrollX,
+            double scrollY
+    ) {
+        if (tab == Tab.FOOD
+                && scrollY != 0.0
+                && isMouseOverFoodArea(mouseX, mouseY)) {
+            int rowChange = scrollY > 0.0 ? -1 : 1;
+
+            setFirstVisibleFoodRow(
+                    menu.getFirstVisibleRow() + rowChange
+            );
+
+            return true;
+        }
+
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0
+                && tab == Tab.FOOD
+                && isMouseOverScrollbar(mouseX, mouseY)
+                && getMaxFirstVisibleRow() > 0) {
+
+            draggingScrollbar = true;
+            updateScrollbarFromMouse(mouseY);
+            return true;
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseDragged(
+            double mouseX,
+            double mouseY,
+            int button,
+            double dragX,
+            double dragY
+    ) {
+        if (button == 0 && draggingScrollbar) {
+            updateScrollbarFromMouse(mouseY);
+            return true;
+        }
+
+        return super.mouseDragged(
+                mouseX,
+                mouseY,
+                button,
+                dragX,
+                dragY
+        );
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0 && draggingScrollbar) {
+            draggingScrollbar = false;
+            return true;
+        }
+
+        return super.mouseReleased(mouseX, mouseY, button);
     }
 
     private void renderPlayerInventoryBackground(GuiGraphics graphics) {
@@ -305,10 +585,12 @@ public final class RestaurantScreen extends AbstractContainerScreen<RestaurantMe
             );
         } else {
             graphics.drawString(font, Component.translatable("gui.create_restaurant.food_item"), 25, 54, TEXT, false);
-            graphics.drawString(font, Component.translatable("gui.create_restaurant.emerald_price"), 93, 54, TEXT, false);
-            for (int row = 0; row < menu.getActiveRows(); row++) {
-                graphics.drawString(font, "×", 101, 69 + row * 21, MUTED, false);
-                graphics.drawString(font, "♦", 108, 69 + row * 21, 0xFF55E27A, false);
+            graphics.drawString(font, Component.translatable("gui.create_restaurant.emerald_price"), 79, 54, TEXT, false);
+            graphics.drawString(font, Component.translatable("gui.create_restaurant.market_price"), 164, 54, TEXT, false);
+            for (int row = 0; row < menu.getVisibleRowCount(); row++) {
+                graphics.drawString(font, "×", 79, 69 + row * 21, MUTED, false);
+                graphics.drawString(font, "♦", 86, 69 + row * 21, 0xFF55E27A, false);
+                graphics.drawString(font, "♦", 165, 69 + row * 21, 0xFF55E27A, false);
             }
         }
     }

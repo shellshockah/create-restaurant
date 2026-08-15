@@ -12,8 +12,9 @@
   "gui.create_restaurant.food_item": "Food item",
   "gui.create_restaurant.emerald_price": "Price",
   "gui.create_restaurant.price": "Emerald price",
-  "gui.create_restaurant.add_row": "+ Row",
-  "gui.create_restaurant.sub_row": "- Row",
+  "gui.create_restaurant.market_price": "Market Price",
+  "gui.create_restaurant.add_row": "+ Item",
+  "gui.create_restaurant.sub_row": "- Item",
   "gui.create_restaurant.collect": "Collect %s emeralds",
   "message.create_restaurant.closed_at_night": "The restaurant cannot open after sunset."
 }
